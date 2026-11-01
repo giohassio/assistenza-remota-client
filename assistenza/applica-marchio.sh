@@ -25,6 +25,17 @@ grep -q "\"$HOST\"" libs/hbb_common/src/config.rs || { echo "server non applicat
 grep -q "\"$KEY\"" libs/hbb_common/src/config.rs || { echo "chiave non applicata"; exit 1; }
 grep -q "\"$API\".to_owned()" src/common.rs || { echo "console non applicata"; exit 1; }
 
+# --- niente token verso il server ID: con un utente collegato il client chiede uno scambio
+#     di chiavi che hbbs open source non fa ("Failed to secure tcp: deadline has elapsed").
+#     Rubrica e storico passano dalla console in HTTPS, non da questa connessione.
+perl -pi -e 's|^(\s*)let token = LocalConfig::get_option\("access_token"\);|${1}let token = String::new(); // assistenza: niente token al server ID|' \
+  src/ui_session_interface.rs
+grep -q 'let token = String::new(); // assistenza' src/ui_session_interface.rs || { echo "token non tolto"; exit 1; }
+# --- sempre via relay: la via diretta attraverso le reti mobili si apre e cade dopo ~40 s (errore 10054)
+perl -pi -e 's|config::option2bool\("force-always-relay", &self\.get_option\("force-always-relay"\)\)|true /* assistenza: sempre relay */|' \
+  src/client.rs
+grep -q 'true /\* assistenza: sempre relay \*/' src/client.rs || { echo "relay non forzato"; exit 1; }
+
 # --- grafica: logo nella finestra (max 300x60) e icone
 I="$M/icone"
 cp "$M/logo.png" flutter/assets/logo.png
