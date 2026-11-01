@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Applica un marchio ai sorgenti di RustDesk prima della compilazione:
 # server, chiave e console scritti dentro il programma, logo e icone.
-# Uso: bash assistenza/applica-marchio.sh <marchio>   (cartella in assistenza/marchi)
+# Uso: bash assistenza/applica-marchio.sh <marchio> [windows]   (cartella in assistenza/marchi)
 # Lo lancia la CI subito dopo il checkout; in locale lascia i file modificati.
 set -euo pipefail
 
@@ -35,6 +35,14 @@ grep -q 'let token = String::new(); // assistenza' src/ui_session_interface.rs |
 perl -pi -e 's|config::option2bool\("force-always-relay", &self\.get_option\("force-always-relay"\)\)|true /* assistenza: sempre relay */|' \
   src/client.rs
 grep -q 'true /\* assistenza: sempre relay \*/' src/client.rs || { echo "relay non forzato"; exit 1; }
+
+# --- nome del programma: solo su Windows, dove decide servizio, cartella e titolo.
+#     Sul Mac il pacchetto resta RustDesk.app finché non si rinomina anche quello.
+if [ "${2:-}" = "windows" ]; then
+  [[ "${NOME_APP:-}" =~ ^[A-Za-z0-9-]+$ ]] || { echo "NOME_APP ammette solo lettere, numeri e trattini"; exit 1; }
+  perl -pi -e "s|(APP_NAME: RwLock<String> = RwLock::new\()\"RustDesk\"|\$1\"$NOME_APP\"|" libs/hbb_common/src/config.rs
+  grep -q "RwLock::new(\"$NOME_APP\".to_owned())" libs/hbb_common/src/config.rs || { echo "nome non applicato"; exit 1; }
+fi
 
 # --- grafica: logo nella finestra (max 300x60) e icone
 I="$M/icone"
