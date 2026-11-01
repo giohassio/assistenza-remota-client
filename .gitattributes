@@ -1,1 +1,7 @@
 * text=auto
+
+# Assistenza: script e .conf letti da bash anche sul runner Windows (CRLF li rompe)
+assistenza/**/*.sh text eol=lf
+assistenza/**/*.conf text eol=lf
+assistenza/*.sh text eol=lf
+assistenza/*.conf text eol=lf
