@@ -43,22 +43,39 @@ grep -q "!= 'N'; // assistenza: acceso di default" flutter/lib/models/ab_model.d
 grep -q "key: syncAbOption, value: v ? 'Y' : 'N')" flutter/lib/models/ab_model.dart || { echo "spegnimento rubrica dai recenti non applicato"; exit 1; }
 
 # --- nome del programma: decide servizio, cartella, eseguibile e titolo.
-#     Windows: NOME_APP. Mac: NOME_APP_MAC (pacchetto <nome>.app al posto di RustDesk.app).
+#     Windows e Android: NOME_APP. Mac: NOME_APP_MAC (pacchetto <nome>.app al posto di RustDesk.app).
 #     RustDesk ammette solo [A-Za-z0-9-] nel nome (validate_install_app_name).
-if [ "${2:-}" = "windows" ]; then NOME_PROG=${NOME_APP:-}; else NOME_PROG=${NOME_APP_MAC:-}; fi
+SISTEMA=${2:-mac}
+if [ "$SISTEMA" = "mac" ]; then NOME_PROG=${NOME_APP_MAC:-}; else NOME_PROG=${NOME_APP:-}; fi
 [[ "$NOME_PROG" =~ ^[A-Za-z0-9-]+$ ]] || { echo "nome del programma: solo lettere, numeri e trattini"; exit 1; }
 perl -pi -e "s|(APP_NAME: RwLock<String> = RwLock::new\()\"RustDesk\"|\$1\"$NOME_PROG\"|" libs/hbb_common/src/config.rs
 grep -q "RwLock::new(\"$NOME_PROG\".to_owned())" libs/hbb_common/src/config.rs || { echo "nome non applicato"; exit 1; }
-if [ "${2:-}" = "windows" ]; then
+if [ "$SISTEMA" = "windows" ]; then
   # l'eseguibile deve chiamarsi come l'app: l'installatore registra servizio e icone su <NOME_APP>.exe
   perl -pi -e "s|^set\(BINARY_NAME \"rustdesk\"\)|set(BINARY_NAME \"$NOME_PROG\")|" flutter/windows/CMakeLists.txt
   grep -q "^set(BINARY_NAME \"$NOME_PROG\")" flutter/windows/CMakeLists.txt || { echo "nome dell'eseguibile non applicato"; exit 1; }
+elif [ "$SISTEMA" = "android" ]; then
+  # id proprio: col com.carriez.flutter_hbb di RustDesk le due app non convivrebbero sul telefono
+  ID_ANDROID="it.giovannimarchese.$(echo "$NOME_PROG" | tr 'A-Z-' 'a-z_')"
+  perl -pi -e "s|applicationId \"com\.carriez\.flutter_hbb\"|applicationId \"$ID_ANDROID\"|" flutter/android/app/build.gradle
+  grep -q "applicationId \"$ID_ANDROID\"" flutter/android/app/build.gradle || { echo "id Android non applicato"; exit 1; }
+  perl -pi -e "s|android:label=\"RustDesk( Input)?\"|android:label=\"$NOME_PROG\$1\"|g" flutter/android/app/src/main/AndroidManifest.xml
+  grep -q "android:label=\"$NOME_PROG\"" flutter/android/app/src/main/AndroidManifest.xml || { echo "nome Android non applicato"; exit 1; }
+  # icone: classiche a tutta superficie, adattive col simbolo nel 66% centrale (zona sicura)
+  command -v convert >/dev/null || { echo "serve ImageMagick (convert) per le icone Android"; exit 1; }
+  R=flutter/android/app/src/main/res
+  for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+    n=${d#*:}; f=$((n * 9 / 4)); in=$((f * 61 / 100))
+    convert "$M/icone/icona-1024.png" -resize "${n}x${n}" "$R/mipmap-${d%%:*}/ic_launcher.png"
+    cp "$R/mipmap-${d%%:*}/ic_launcher.png" "$R/mipmap-${d%%:*}/ic_launcher_round.png"
+    convert "$M/icone/icona-1024.png" -resize "${in}x${in}" -background none -gravity center -extent "${f}x${f}" "$R/mipmap-${d%%:*}/ic_launcher_foreground.png"
+  done
 else
   perl -pi -e "s|^PRODUCT_NAME = RustDesk(?=\s*\$)|PRODUCT_NAME = $NOME_PROG|" flutter/macos/Runner/Configs/AppInfo.xcconfig
   grep -q "^PRODUCT_NAME = $NOME_PROG[[:space:]]*\$" flutter/macos/Runner/Configs/AppInfo.xcconfig || { echo "nome del pacchetto Mac non applicato"; exit 1; }
   perl -pi -e "s|RustDesk\.app|$NOME_PROG.app|g" build.py
 fi
-# alla CI serve il nome per impacchettare (exe da avviare, .app del dmg)
+# alla CI serve il nome per impacchettare (exe da avviare, .app del dmg, apk)
 [ -n "${GITHUB_ENV:-}" ] && echo "NOME_PROG=$NOME_PROG" >> "$GITHUB_ENV"
 
 # --- grafica: logo nella finestra (max 300x60) e icone
