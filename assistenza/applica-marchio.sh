@@ -35,6 +35,12 @@ grep -q 'let token = String::new(); // assistenza' src/ui_session_interface.rs |
 perl -pi -e 's|config::option2bool\("force-always-relay", &self\.get_option\("force-always-relay"\)\)|true /* assistenza: sempre relay */|' \
   src/client.rs
 grep -q 'true /\* assistenza: sempre relay \*/' src/client.rs || { echo "relay non forzato"; exit 1; }
+# --- rubrica sincronizzata con le sessioni recenti già di default: ogni PC a cui ci si collega
+#     entra nella rubrica del tecnico (ID, nome del PC, utente). Spegnerla salva "N", non "".
+perl -pi -e "s|return bind\.mainGetLocalOption\(key: syncAbOption\) == 'Y';|return bind.mainGetLocalOption(key: syncAbOption) != 'N'; // assistenza: acceso di default|; s|key: syncAbOption, value: v \? 'Y' : defaultOptionNo\)|key: syncAbOption, value: v ? 'Y' : 'N')|" \
+  flutter/lib/models/ab_model.dart
+grep -q "!= 'N'; // assistenza: acceso di default" flutter/lib/models/ab_model.dart || { echo "rubrica dai recenti non accesa"; exit 1; }
+grep -q "key: syncAbOption, value: v ? 'Y' : 'N')" flutter/lib/models/ab_model.dart || { echo "spegnimento rubrica dai recenti non applicato"; exit 1; }
 
 # --- nome del programma: solo su Windows, dove decide servizio, cartella e titolo.
 #     Sul Mac il pacchetto resta RustDesk.app finché non si rinomina anche quello.
