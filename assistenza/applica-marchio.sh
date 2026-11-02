@@ -42,13 +42,24 @@ perl -pi -e "s|return bind\.mainGetLocalOption\(key: syncAbOption\) == 'Y';|retu
 grep -q "!= 'N'; // assistenza: acceso di default" flutter/lib/models/ab_model.dart || { echo "rubrica dai recenti non accesa"; exit 1; }
 grep -q "key: syncAbOption, value: v ? 'Y' : 'N')" flutter/lib/models/ab_model.dart || { echo "spegnimento rubrica dai recenti non applicato"; exit 1; }
 
-# --- nome del programma: solo su Windows, dove decide servizio, cartella e titolo.
-#     Sul Mac il pacchetto resta RustDesk.app finché non si rinomina anche quello.
+# --- nome del programma: decide servizio, cartella, eseguibile e titolo.
+#     Windows: NOME_APP. Mac: NOME_APP_MAC (pacchetto <nome>.app al posto di RustDesk.app).
+#     RustDesk ammette solo [A-Za-z0-9-] nel nome (validate_install_app_name).
+if [ "${2:-}" = "windows" ]; then NOME_PROG=${NOME_APP:-}; else NOME_PROG=${NOME_APP_MAC:-}; fi
+[[ "$NOME_PROG" =~ ^[A-Za-z0-9-]+$ ]] || { echo "nome del programma: solo lettere, numeri e trattini"; exit 1; }
+perl -pi -e "s|(APP_NAME: RwLock<String> = RwLock::new\()\"RustDesk\"|\$1\"$NOME_PROG\"|" libs/hbb_common/src/config.rs
+grep -q "RwLock::new(\"$NOME_PROG\".to_owned())" libs/hbb_common/src/config.rs || { echo "nome non applicato"; exit 1; }
 if [ "${2:-}" = "windows" ]; then
-  [[ "${NOME_APP:-}" =~ ^[A-Za-z0-9-]+$ ]] || { echo "NOME_APP ammette solo lettere, numeri e trattini"; exit 1; }
-  perl -pi -e "s|(APP_NAME: RwLock<String> = RwLock::new\()\"RustDesk\"|\$1\"$NOME_APP\"|" libs/hbb_common/src/config.rs
-  grep -q "RwLock::new(\"$NOME_APP\".to_owned())" libs/hbb_common/src/config.rs || { echo "nome non applicato"; exit 1; }
+  # l'eseguibile deve chiamarsi come l'app: l'installatore registra servizio e icone su <NOME_APP>.exe
+  perl -pi -e "s|^set\(BINARY_NAME \"rustdesk\"\)|set(BINARY_NAME \"$NOME_PROG\")|" flutter/windows/CMakeLists.txt
+  grep -q "^set(BINARY_NAME \"$NOME_PROG\")" flutter/windows/CMakeLists.txt || { echo "nome dell'eseguibile non applicato"; exit 1; }
+else
+  perl -pi -e "s|^PRODUCT_NAME = RustDesk(?=\s*\$)|PRODUCT_NAME = $NOME_PROG|" flutter/macos/Runner/Configs/AppInfo.xcconfig
+  grep -q "^PRODUCT_NAME = $NOME_PROG[[:space:]]*\$" flutter/macos/Runner/Configs/AppInfo.xcconfig || { echo "nome del pacchetto Mac non applicato"; exit 1; }
+  perl -pi -e "s|RustDesk\.app|$NOME_PROG.app|g" build.py
 fi
+# alla CI serve il nome per impacchettare (exe da avviare, .app del dmg)
+[ -n "${GITHUB_ENV:-}" ] && echo "NOME_PROG=$NOME_PROG" >> "$GITHUB_ENV"
 
 # --- grafica: logo nella finestra (max 300x60) e icone
 I="$M/icone"

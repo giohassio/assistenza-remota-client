@@ -121,7 +121,7 @@ jobs:
         run: |
           CREATE_DMG="$(readlink -f "$(command -v create-dmg)")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 assistenza-${{ inputs.marchio }}-${{ env.VERSION }}-aarch64.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "${{ env.NOME_PROG }}.app" 200 190 --hide-extension "${{ env.NOME_PROG }}.app" --window-size 800 400 --app-drop-link 600 185 assistenza-${{ inputs.marchio }}-${{ env.VERSION }}-aarch64.dmg ./flutter/build/macos/Build/Products/Release/${{ env.NOME_PROG }}.app
 
       - name: Upload dmg
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -236,7 +236,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
+          python3 ./generate.py -f ../../rustdesk/ -o . -e "../../rustdesk/${{ env.NOME_PROG }}.exe"
           popd
           mkdir -p ./Uscita
           mv ./target/release/rustdesk-portable-packer.exe ./Uscita/assistenza-${{ inputs.marchio }}-${{ env.VERSION }}-x86_64.exe
