@@ -291,7 +291,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake curl git g++ imagemagick libclang-dev llvm-dev nasm ninja-build openjdk-17-jdk-headless pkg-config wget
+          sudo apt-get install -y clang cmake curl gcc-multilib git g++ g++-multilib imagemagick libc6-dev libclang-dev llvm-dev nasm ninja-build openjdk-17-jdk-headless pkg-config wget
 
       - name: Checkout source code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
